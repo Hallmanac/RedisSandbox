@@ -16,7 +16,6 @@ namespace RedisSandbox.Console.Identity.Cache
         {
             var theUser = _appCache.GetItemViaIndex<User>(ComposeUserIdIndexKey(), id.ToString());
             return theUser;
-            //return _appCache.GetAllIndexedItemsInCache<User>(ComposeIndexKey()).FirstOrDefault(usr => usr.Id == id);
         }
 
         public User GetByUserName(string userName) { return _appCache.GetValue<User>(ComposeKey(userName), ComposeIndexKey()); }
@@ -40,7 +39,6 @@ namespace RedisSandbox.Console.Identity.Cache
         {
             var theUser = _appCache.GetItemViaIndex<User>(ComposeEmailIndexKey(), emailAddress);
             return theUser;
-            //return GetAllUsersInCache().FirstOrDefault(usr => usr.Emails.Any(eml => eml.EmailAddress == emailAddress));
         }
 
         public void ClearCache() { _appCache.ClearCache(); }

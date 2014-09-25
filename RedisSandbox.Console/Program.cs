@@ -26,7 +26,7 @@ namespace RedisSandbox.Console
 
             rt.InitializeUsersAsync(userQty, phoneQty).Wait();
 
-            var userByEmail = rt.ShowRandomUser();
+            var userByEmail = rt.ShowUserByEmailAsync(null).Result;
             System.Console.WriteLine("\nThe random user is...\n{0}", JsonConvert.SerializeObject(userByEmail, Formatting.Indented));
         }
     }

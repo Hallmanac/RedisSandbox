@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Practices.Unity;
 using RedisSandbox.Console.Core;
@@ -62,11 +65,26 @@ namespace RedisSandbox.Console
             System.Console.WriteLine("\nUsers initialized.");
         }
 
-        public async Task<User> ShowRandomUser()
+        public async Task<User> ShowUserByEmailAsync(string emailAddress)
         {
             var userCache = AppConst.AppContainer.Resolve<UserCache>();
+            if(!string.IsNullOrEmpty(emailAddress))
+                return userCache.GetByEmail(emailAddress);
+            var sw = new Stopwatch();
+            sw.Start();
+            var count = userCache.GetAllUsersInCache().Count();
+            sw.Stop();
+            System.Console.WriteLine("\nGot count of all users in {0}", sw.ElapsedMilliseconds);
+            sw.Reset();
+            var random = new Random();
+            var emailNumber = random.Next(count);
 
-            return userCache.GetByEmail(string.Format("First_{0:0000}@FakeEmail.com", 5));
+            emailAddress = string.Format("First_{0:0000}@FakeEmail.com", emailNumber);
+            sw.Start();
+            var returnUser = userCache.GetByEmail(emailAddress);
+            sw.Stop();
+            System.Console.WriteLine("\nGot random user in {0}", sw.ElapsedMilliseconds);
+            return returnUser;
         }
     }
 }

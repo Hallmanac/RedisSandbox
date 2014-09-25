@@ -31,7 +31,12 @@ namespace RedisSandbox.Console.Identity.Cache
             _appCache.SetIndex(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)));
         }
 
-        public void RemoveUserFromCache(User user) { _appCache.Remove(ComposeKey(user.Username), ComposeIndexKey()); }
+        public void RemoveUserFromCache(User user)
+        {
+            _appCache.Remove(ComposeKey(user.Username), ComposeIndexKey());
+            user.Emails.ForEach(eml => _appCache.RemoveFromIndex(ComposeEmailIndexKey(), eml.EmailAddress));
+            _appCache.RemoveFromIndex(ComposeUserIdIndexKey(), user.Id.ToString());
+        }
 
         public IEnumerable<User> GetAllUsersInCache() { return _appCache.GetAllIndexedItemsInCache<User>(ComposeIndexKey()); }
 

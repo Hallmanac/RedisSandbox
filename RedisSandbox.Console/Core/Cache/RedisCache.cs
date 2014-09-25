@@ -109,9 +109,9 @@ namespace RedisSandbox.Console.Core.Cache
             return indexedValues;*/
         }
 
-        public TValue GetItemViaIndex<TValue>(string indexName, string indexValue) where TValue : class
+        public TValue GetItemViaIndex<TValue>(string indexName, string hashKey) where TValue : class
         {
-            var cacheKey = _redisCache.HashGet(indexName, indexValue);
+            var cacheKey = _redisCache.HashGet(indexName, hashKey);
             return cacheKey.IsNullOrEmpty ? default(TValue) : GetValue<TValue>(cacheKey);
         }
 

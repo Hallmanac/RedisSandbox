@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using RedisSandbox.Console.Core.Cache;
 
 namespace RedisSandbox.Console.Identity.Cache
@@ -10,20 +9,27 @@ namespace RedisSandbox.Console.Identity.Cache
         private readonly IAppCache _appCache;
 
         public UserCache() { _appCache = _appCache ?? new RedisCache(); }
-        
-        public UserCache (IAppCache appCache): this() { _appCache = appCache; }
 
-        public User GetById(int id) { return _appCache.GetAllIndexedItemsInCache<User>(ComposeIndexKey()).FirstOrDefault(usr => usr.Id == id); }
+        public UserCache(IAppCache appCache) : this() { _appCache = appCache; }
 
-        public User GetByUserName(string userName)
+        public User GetById(int id)
         {
-            return _appCache.GetValue<User>(ComposeKey(userName), ComposeIndexKey());
+            var theUser = _appCache.GetItemViaIndex<User>(ComposeUserIdIndexKey(), id.ToString());
+            return theUser;
+            //return _appCache.GetAllIndexedItemsInCache<User>(ComposeIndexKey()).FirstOrDefault(usr => usr.Id == id);
         }
+
+        public User GetByUserName(string userName) { return _appCache.GetValue<User>(ComposeKey(userName), ComposeIndexKey()); }
 
         public void PutUserInCache(User user)
         {
             _appCache.Put(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey());
-            
+
+            // Set the index for Emails
+            user.Emails.ForEach(eml => _appCache.SetIndex(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username))));
+
+            // Set the index for user id
+            _appCache.SetIndex(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)));
         }
 
         public void RemoveUserFromCache(User user) { _appCache.Remove(ComposeKey(user.Username), ComposeIndexKey()); }
@@ -32,13 +38,12 @@ namespace RedisSandbox.Console.Identity.Cache
 
         public User GetByEmail(string emailAddress)
         {
-            return GetAllUsersInCache().FirstOrDefault(usr => usr.Emails.Any(eml => eml.EmailAddress == emailAddress));
+            var theUser = _appCache.GetItemViaIndex<User>(ComposeEmailIndexKey(), emailAddress);
+            return theUser;
+            //return GetAllUsersInCache().FirstOrDefault(usr => usr.Emails.Any(eml => eml.EmailAddress == emailAddress));
         }
 
-        public void ClearCache()
-        {
-            _appCache.ClearCache();
-        }
+        public void ClearCache() { _appCache.ClearCache(); }
 
         #region Key Composers
 
@@ -46,9 +51,9 @@ namespace RedisSandbox.Console.Identity.Cache
 
         private static string ComposeIndexKey() { return string.Format("{0}", "UsersIndexList"); }
 
-        private static string ComposeChangePasswordKey(string keyItem) { return string.Format("{0}_{1}", "ChangePasswordToken", keyItem); }
+        private static string ComposeEmailIndexKey() { return string.Format("{0}:{1}", "User", "Emails"); }
 
-        private static string ComposeChangePasswordIndexKey() { return "ChangePasswordTokensList"; }
+        private static string ComposeUserIdIndexKey() { return string.Format("{0}:{1}", "User", "Ids"); }
 
         #endregion
     }

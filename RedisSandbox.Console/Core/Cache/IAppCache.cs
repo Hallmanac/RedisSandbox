@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace RedisSandbox.Console
+namespace RedisSandbox.Console.Core.Cache
 {
     public interface IAppCache
     {

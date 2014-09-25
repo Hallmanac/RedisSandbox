@@ -4,7 +4,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using StackExchange.Redis;
 
-namespace RedisSandbox.Console
+namespace RedisSandbox.Console.Core.Cache
 {
     public class RedisCache : IAppCache
     {

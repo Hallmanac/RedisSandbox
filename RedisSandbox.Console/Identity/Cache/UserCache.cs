@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using RedisSandbox.Console.Core.Cache;
 
 namespace RedisSandbox.Console.Identity.Cache
 {

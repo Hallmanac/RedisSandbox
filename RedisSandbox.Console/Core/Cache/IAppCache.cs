@@ -11,6 +11,7 @@ namespace RedisSandbox.Console.Core.Cache
         void Remove(string key, string indexName = "");
         void Put(string key, object value, TimeSpan? timeout, string indexName = "");
         IEnumerable<TValue> GetAllIndexedItemsInCache<TValue>(string indexName) where TValue : class;
+        TValue GetItemViaIndex<TValue>(string indexName, string indexValue) where TValue : class;
         void ClearCache(); 
     }
 }

@@ -23,6 +23,7 @@ namespace RedisSandbox.Console.Identity.Cache
         public void PutUserInCache(User user)
         {
             _appCache.Put(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey());
+            
         }
 
         public void RemoveUserFromCache(User user) { _appCache.Remove(ComposeKey(user.Username), ComposeIndexKey()); }
@@ -34,6 +35,11 @@ namespace RedisSandbox.Console.Identity.Cache
             return GetAllUsersInCache().FirstOrDefault(usr => usr.Emails.Any(eml => eml.EmailAddress == emailAddress));
         }
 
+        public void ClearCache()
+        {
+            _appCache.ClearCache();
+        }
+
         #region Key Composers
 
         private static string ComposeKey(string keyItem) { return string.Format("{0}_{1}", "UserEntity", keyItem); }
@@ -43,7 +49,6 @@ namespace RedisSandbox.Console.Identity.Cache
         private static string ComposeChangePasswordKey(string keyItem) { return string.Format("{0}_{1}", "ChangePasswordToken", keyItem); }
 
         private static string ComposeChangePasswordIndexKey() { return "ChangePasswordTokensList"; }
-
 
         #endregion
     }

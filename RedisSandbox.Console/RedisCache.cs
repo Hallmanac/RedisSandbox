@@ -6,7 +6,7 @@ using StackExchange.Redis;
 
 namespace RedisSandbox.Console
 {
-    public class RedisCache
+    public class RedisCache : IAppCache
     {
         private readonly IDatabase _redisCache;
 

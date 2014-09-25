@@ -6,7 +6,7 @@ namespace RedisSandbox.Console.Core
     {
         private static IUnityContainer _appContainer;
 #if !DEBUG
-        public const string RedisConnectionString = "ajunct.redis.cache.windows.net,ssl=true,password=X/vC00bUpgJSgVBEu7/2hGrYwx/vaSCa8KfBb52r1VQ=,allowAdmin=true";
+        public const string RedisConnectionString = "[cache-name].redis.cache.windows.net,ssl=true,password=[your password here],allowAdmin=true";
 #else
         public const string RedisConnectionString = "localhost,allowAdmin=true";
 #endif

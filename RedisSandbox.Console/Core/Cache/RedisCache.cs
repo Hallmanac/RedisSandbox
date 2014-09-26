@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Policy;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using StackExchange.Redis;
 
@@ -14,53 +16,125 @@ namespace RedisSandbox.Console.Core.Cache
 
         public bool Contains(string key) { return _redisCache.KeyExists(key); }
 
-        public object Get(string key, string indexName = "")
+        public async Task<bool> ContainsAsync(string key) { return await _redisCache.KeyExistsAsync(key).ConfigureAwait(false); }
+
+        public object Get(string key, string trackingIndexName = "")
         {
             if(string.IsNullOrEmpty(key))
                 return null;
             var cacheValue = _redisCache.StringGet(key);
+
+            // If we have a null value, be sure to remove it from the tracking index
             if(cacheValue.IsNullOrEmpty)
             {
-                if(!string.IsNullOrEmpty(indexName))
-                    _redisCache.SetRemove(indexName, key);
+                if(!string.IsNullOrEmpty(trackingIndexName))
+                    _redisCache.SetRemove(trackingIndexName, key);
                 return null;
-            }
+            } // else...
             var objValue = JsonConvert.DeserializeObject(cacheValue);
-            if(string.IsNullOrEmpty(indexName))
+            if(string.IsNullOrEmpty(trackingIndexName))
                 return objValue;
-            _redisCache.SetAdd(indexName, key);
+
+            // Add it to the tracking index
+            _redisCache.SetAdd(trackingIndexName, key);
             return objValue;
         }
 
-        public TValue GetValue<TValue>(string key, string indexName = "") where TValue : class
+        public async Task<object> GetAsync(string key, string trackingIndexName = "")
+        {
+            if (string.IsNullOrEmpty(key))
+                return null;
+            var cacheValue = await _redisCache.StringGetAsync(key).ConfigureAwait(false);
+
+            // If we have a null value, be sure to remove it from the tracking index
+            if (cacheValue.IsNullOrEmpty)
+            {
+                if(!string.IsNullOrEmpty(trackingIndexName))
+                    await _redisCache.SetRemoveAsync(trackingIndexName, key).ConfigureAwait(false);
+                return null;
+            } // else...
+            var objValue = JsonConvert.DeserializeObject(cacheValue);
+            if (string.IsNullOrEmpty(trackingIndexName))
+                return objValue;
+
+            // Add it to the tracking index
+            await _redisCache.SetAddAsync(trackingIndexName, key).ConfigureAwait(false);
+            return objValue;
+        }
+
+        public TValue GetValue<TValue>(string key, string trackingIndexName = "") where TValue : class
         {
             if(string.IsNullOrEmpty(key))
                 return null;
             var cachedValue = _redisCache.StringGet(key);
+
+            // If we have a null value, be sure to remove it from the tracking index
             if(cachedValue.IsNullOrEmpty)
             {
-                if(!string.IsNullOrEmpty(indexName))
-                    _redisCache.SetRemove(indexName, key);
+                if(!string.IsNullOrEmpty(trackingIndexName))
+                    _redisCache.SetRemove(trackingIndexName, key);
                 return null;
-            }
+            } // else...
             var result = JsonConvert.DeserializeObject<TValue>(cachedValue);
-            if(string.IsNullOrEmpty(indexName))
+            if(string.IsNullOrEmpty(trackingIndexName))
                 return result;
-            _redisCache.SetAdd(indexName, key);
+
+            // Add it to the tracking index
+            _redisCache.SetAdd(trackingIndexName, key);
             return result;
         }
 
-        public void Remove(string key, string indexName = "")
+        public async Task<TValue> GetValueAsync<TValue>(string key, string trackingIndexName = "") where TValue : class
+        {
+            if (string.IsNullOrEmpty(key))
+                return null;
+            var cachedValue = await _redisCache.StringGetAsync(key).ConfigureAwait(false);
+
+            // If we have a null value, be sure to remove it from the tracking index
+            if (cachedValue.IsNullOrEmpty)
+            {
+                if (!string.IsNullOrEmpty(trackingIndexName))
+                    await _redisCache.SetRemoveAsync(trackingIndexName, key).ConfigureAwait(false);
+                return null;
+            } // else...
+            var result = JsonConvert.DeserializeObject<TValue>(cachedValue);
+            if (string.IsNullOrEmpty(trackingIndexName))
+                return result;
+
+            // Add it to the tracking index
+            await _redisCache.SetAddAsync(trackingIndexName, key).ConfigureAwait(false);
+            return result;
+        }
+
+        public void Remove(string key, string trackingIndexName = "")
         {
             if(string.IsNullOrEmpty(key))
                 return;
+
+            // Remove the object from cache
             _redisCache.KeyDelete(key);
-            if(string.IsNullOrEmpty(indexName))
+            if(string.IsNullOrEmpty(trackingIndexName))
                 return;
-            _redisCache.SetRemove(indexName, key);
+
+            // Remove it from the tracking index
+            _redisCache.SetRemove(trackingIndexName, key);
         }
 
-        public void Put(string key, object value, TimeSpan? timeout, string indexName = "")
+        public async Task RemoveAsync(string key, string trackingIndexName = "")
+        {
+            if (string.IsNullOrEmpty(key))
+                return;
+
+            // Remove the object from cache
+            await _redisCache.KeyDeleteAsync(key).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(trackingIndexName))
+                return;
+
+            // Remove it from the tracking index
+            await _redisCache.SetRemoveAsync(trackingIndexName, key).ConfigureAwait(false);
+        }
+
+        public void Put(string key, object value, TimeSpan? timeout, string trackingIndexName = "")
         {
             if(string.IsNullOrEmpty(key) || value == null)
                 return;
@@ -69,50 +143,76 @@ namespace RedisSandbox.Console.Core.Cache
                 _redisCache.StringSet(key, cacheValue);
             else
                 _redisCache.StringSet(key, cacheValue, timeout);
-            if(string.IsNullOrEmpty(indexName))
+            if(string.IsNullOrEmpty(trackingIndexName))
                 return;
-            _redisCache.SetAdd(indexName, key);
+            _redisCache.SetAdd(trackingIndexName, key);
         }
 
-        public IEnumerable<TValue> GetAllIndexedItemsInCache<TValue>(string indexName) where TValue : class
+        public async Task PutAsync(string key, object value, TimeSpan? timeout, string trackingIndexName = "")
         {
-            if(string.IsNullOrEmpty(indexName))
+            if (string.IsNullOrEmpty(key) || value == null)
+                return;
+            var cacheValue = JsonConvert.SerializeObject(value);
+            if(timeout == null)
+                await _redisCache.StringSetAsync(key, cacheValue).ConfigureAwait(false);
+            else
+                await _redisCache.StringSetAsync(key, cacheValue, timeout).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(trackingIndexName))
+                return;
+            await _redisCache.SetAddAsync(trackingIndexName, key).ConfigureAwait(false);
+        }
+
+        public IEnumerable<TValue> GetAllTrackedItemsInCache<TValue>(string trackingIndexName) where TValue : class
+        {
+            if(string.IsNullOrEmpty(trackingIndexName))
                 yield break;
 
-            //var keysToRemove = new List<RedisValue>();
-            //var indexedValues = new List<TValue>();
             var previouslyScannedMembers = new List<string>();
-            if(!_redisCache.KeyExists(indexName))
+            if(!_redisCache.KeyExists(trackingIndexName))
                 yield break;
-            foreach(var redisValue in _redisCache.SetScan(indexName).Where(redisValue => !previouslyScannedMembers.Contains(redisValue.ToString())))
+            foreach(var redisValue in _redisCache.SetScan(trackingIndexName).Where(redisValue => !previouslyScannedMembers.Contains(redisValue.ToString())))
             {
                 previouslyScannedMembers.Add(redisValue);
                 var cachedValue = _redisCache.StringGet(redisValue.ToString());
 
-                // If the item is null it means we have a stale key in the index and need to remove it (typically from when a cache item naturally expires). 
-                // We will add it to the "keysToRemove" list to go through after this foreach statement.
                 if(string.IsNullOrEmpty(cachedValue))
-                    _redisCache.SetRemove(indexName, redisValue); //keysToRemove.Add(redisValue);
+                    _redisCache.SetRemove(trackingIndexName, redisValue); //keysToRemove.Add(redisValue);
                 else // We simply add the cacheItem to the list of indexedValues that we will eventually return.
                 {
                     var cachedItem = JsonConvert.DeserializeObject<TValue>(cachedValue);
                     yield return cachedItem;
                 }
             }
-
-            // Remove any keys that are stale
-            /*if (keysToRemove.Count <= 0)
-            {
-                return indexedValues;
-            }
-            _redisCache.SetRemove(indexName, keysToRemove.ToArray());
-            return indexedValues;*/
         }
 
         public TValue GetItemViaIndex<TValue>(string indexName, string hashKey) where TValue : class
         {
             var cacheKey = _redisCache.HashGet(indexName, hashKey);
-            return cacheKey.IsNullOrEmpty ? default(TValue) : GetValue<TValue>(cacheKey);
+            if(cacheKey.IsNullOrEmpty)
+                return default(TValue);
+
+            // Get the value from cache
+            var cacheValue = GetValue<TValue>(cacheKey);
+
+            // If we have a null value then we need to remove it from the hashset index
+            if(cacheValue == default(TValue))
+                RemoveFromCustomIndex(indexName, hashKey);
+            return cacheValue;
+        }
+
+        public async Task<TValue> GetItemViaIndexAsync<TValue>(string indexName, string hashKey) where TValue : class
+        {
+            var cacheKey = await _redisCache.HashGetAsync(indexName, hashKey).ConfigureAwait(false);
+            if (cacheKey.IsNullOrEmpty)
+                return default(TValue);
+
+            // Get the value from cache
+            var cacheValue = await GetValueAsync<TValue>(cacheKey).ConfigureAwait(false);
+
+            // If we have a null value then we need to remove it from the hashset index
+            if (cacheValue == default(TValue))
+                await RemoveFromCustomIndexAsync(indexName, hashKey).ConfigureAwait(false);
+            return cacheValue;
         }
 
         public void ClearCache()
@@ -124,9 +224,37 @@ namespace RedisSandbox.Console.Core.Cache
             }
         }
 
-        public void SetIndex(string indexName, KeyValuePair<string, string> keyValuePair)
+        public async Task ClearCacheAsync()
         {
-            _redisCache.HashSet(indexName, keyValuePair.Key, keyValuePair.Value);
+            var connection = await ConnectionMultiplexer.ConnectAsync(AppConst.RedisConnectionString).ConfigureAwait(false);
+            var endpoints = connection.GetEndPoints();
+
+            foreach(var endPoint in endpoints)
+            {
+                var serverConnect = await ConnectionMultiplexer.ConnectAsync(AppConst.RedisConnectionString).ConfigureAwait(false);
+                var server = serverConnect.GetServer(endPoint);
+                await server.FlushAllDatabasesAsync().ConfigureAwait(false);
+            }
+        }
+
+        public void RemoveFromCustomIndex(string indexName, string hashKey)
+        {
+            _redisCache.HashDelete(indexName, hashKey);
+        }
+
+        public async Task RemoveFromCustomIndexAsync(string indexName, string hashKey)
+        {
+            await _redisCache.HashDeleteAsync(indexName, hashKey).ConfigureAwait(false);
+        }
+
+        public void SetCustomIndex(string indexName, KeyValuePair<string, string> hashSet)
+        {
+            _redisCache.HashSet(indexName, hashSet.Key, hashSet.Value);
+        }
+
+        public async Task SetCustomIndexAsync(string indexName, KeyValuePair<string, string> hashSet)
+        {
+            await _redisCache.HashSetAsync(indexName, hashSet.Key, hashSet.Value).ConfigureAwait(false);
         }
     }
 }

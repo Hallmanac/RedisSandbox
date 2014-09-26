@@ -14,31 +14,41 @@ namespace RedisSandbox.Console.Identity.Cache
 
         public User GetById(int id)
         {
+            // The ID index is stored as a hash set or Concurrent Dictionary so we call into that index in cache
+            // and it will give the proper cache key that will allow us to retrieve the full user from cache.
             var theUser = _appCache.GetItemViaIndex<User>(ComposeUserIdIndexKey(), id.ToString());
             return theUser;
         }
 
-        public User GetByUserName(string userName) { return _appCache.GetValue<User>(ComposeKey(userName), ComposeIndexKey()); }
+        public User GetByUserName(string userName)
+        {
+            // Username is the part of the default key for caching a user so we can just get it straight from cache directly
+            return _appCache.GetValue<User>(ComposeKey(userName), ComposeIndexKey());
+        }
 
         public void PutUserInCache(User user)
         {
+            // Put the object into the cache
             _appCache.Put(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey());
 
             // Set the index for Emails
-            user.Emails.ForEach(eml => _appCache.SetIndex(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username))));
+            user.Emails.ForEach(eml => _appCache.SetCustomIndex(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username))));
 
             // Set the index for user id
-            _appCache.SetIndex(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)));
+            _appCache.SetCustomIndex(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)));
         }
 
         public void RemoveUserFromCache(User user)
         {
             _appCache.Remove(ComposeKey(user.Username), ComposeIndexKey());
-            user.Emails.ForEach(eml => _appCache.RemoveFromIndex(ComposeEmailIndexKey(), eml.EmailAddress));
-            _appCache.RemoveFromIndex(ComposeUserIdIndexKey(), user.Id.ToString());
+            user.Emails.ForEach(eml => _appCache.RemoveFromCustomIndex(ComposeEmailIndexKey(), eml.EmailAddress));
+            _appCache.RemoveFromCustomIndex(ComposeUserIdIndexKey(), user.Id.ToString());
         }
 
-        public IEnumerable<User> GetAllUsersInCache() { return _appCache.GetAllIndexedItemsInCache<User>(ComposeIndexKey()); }
+        public IEnumerable<User> GetAllUsersInCache()
+        {
+            return _appCache.GetAllTrackedItemsInCache<User>(ComposeIndexKey());
+        }
 
         public User GetByEmail(string emailAddress)
         {

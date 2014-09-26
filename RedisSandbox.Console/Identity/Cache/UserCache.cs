@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using RedisSandbox.Console.Core.Cache;
 
 namespace RedisSandbox.Console.Identity.Cache
@@ -20,10 +21,24 @@ namespace RedisSandbox.Console.Identity.Cache
             return theUser;
         }
 
+        public async Task<User> GetByIdAsync(int id)
+        {
+            // The ID index is stored as a hash set or Concurrent Dictionary so we call into that index in cache
+            // and it will give the proper cache key that will allow us to retrieve the full user from cache.
+            var theUser = await _appCache.GetItemViaIndexAsync<User>(ComposeUserIdIndexKey(), id.ToString()).ConfigureAwait(false);
+            return theUser;
+        }
+
         public User GetByUserName(string userName)
         {
             // Username is the part of the default key for caching a user so we can just get it straight from cache directly
             return _appCache.GetValue<User>(ComposeKey(userName), ComposeIndexKey());
+        }
+
+        public async Task<User> GetByUserNameAsync(string userName)
+        {
+            // Username is the part of the default key for caching a user so we can just get it straight from cache directly
+            return await _appCache.GetValueAsync<User>(ComposeKey(userName), ComposeIndexKey()).ConfigureAwait(false);
         }
 
         public void PutUserInCache(User user)
@@ -38,11 +53,36 @@ namespace RedisSandbox.Console.Identity.Cache
             _appCache.SetCustomIndex(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)));
         }
 
+        public async Task PutUserInCacheAsync(User user)
+        {
+            // Put the object into the cache
+            await _appCache.PutAsync(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey()).ConfigureAwait(false);
+
+            // Set the index for Emails
+            user.Emails.ForEach(
+                async eml =>
+                    await
+                        _appCache.SetCustomIndexAsync(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username)))
+                                 .ConfigureAwait(false));
+
+            // Set the index for user id
+            await
+                _appCache.SetCustomIndexAsync(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)))
+                         .ConfigureAwait(false);
+        }
+
         public void RemoveUserFromCache(User user)
         {
             _appCache.Remove(ComposeKey(user.Username), ComposeIndexKey());
             user.Emails.ForEach(eml => _appCache.RemoveFromCustomIndex(ComposeEmailIndexKey(), eml.EmailAddress));
             _appCache.RemoveFromCustomIndex(ComposeUserIdIndexKey(), user.Id.ToString());
+        }
+
+        public async Task RemoveUserFromCacheAsync(User user)
+        {
+            await _appCache.RemoveAsync(ComposeKey(user.Username), ComposeIndexKey()).ConfigureAwait(false);
+            user.Emails.ForEach(async eml => await _appCache.RemoveFromCustomIndexAsync(ComposeEmailIndexKey(), eml.EmailAddress).ConfigureAwait(false));
+            await _appCache.RemoveFromCustomIndexAsync(ComposeUserIdIndexKey(), user.Id.ToString()).ConfigureAwait(false);
         }
 
         public IEnumerable<User> GetAllUsersInCache()
@@ -53,6 +93,12 @@ namespace RedisSandbox.Console.Identity.Cache
         public User GetByEmail(string emailAddress)
         {
             var theUser = _appCache.GetItemViaIndex<User>(ComposeEmailIndexKey(), emailAddress);
+            return theUser;
+        }
+
+        public async Task<User> GetByEmailAsync(string emailAddress)
+        {
+            var theUser = await _appCache.GetItemViaIndexAsync<User>(ComposeEmailIndexKey(), emailAddress).ConfigureAwait(false);
             return theUser;
         }
 
@@ -69,5 +115,7 @@ namespace RedisSandbox.Console.Identity.Cache
         private static string ComposeUserIdIndexKey() { return string.Format("{0}:{1}", "User", "Ids"); }
 
         #endregion
+
+        public async Task ClearCacheAsync() { await _appCache.ClearCacheAsync(); }
     }
 }

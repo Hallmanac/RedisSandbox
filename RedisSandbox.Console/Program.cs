@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Practices.Unity;
 using Newtonsoft.Json;
+using Nito.AsyncEx;
 using RedisSandbox.Console.Core;
 
 namespace RedisSandbox.Console
@@ -8,6 +11,15 @@ namespace RedisSandbox.Console
     internal class Program
     {
         private static void Main(string[] args)
+        {
+            AsyncContext.Run(async () =>
+            {
+                var tasks = new List<Task> {MainAsync(args, 1)};
+                await Task.WhenAll(tasks);
+            });
+        }
+
+        private static async Task MainAsync(string[] args, int iteration)
         {
             var rt = AppConst.AppContainer.Resolve<Runtime>();
             System.Console.WriteLine("\nEnter the number of users you would like to create...");
@@ -24,9 +36,9 @@ namespace RedisSandbox.Console
             userQty = userQty == 0 ? 20 : userQty;
             phoneQty = phoneQty == 0 ? 20 : phoneQty;
 
-            rt.InitializeUsersAsync(userQty, phoneQty).Wait();
+            await rt.InitializeUsersAsync(userQty, phoneQty, iteration);
 
-            var userByEmail = rt.ShowUserByEmailAsync(null).Result;
+            var userByEmail = await rt.ShowUserByEmailAsync(null, iteration);
             System.Console.WriteLine("\nThe random user is...\n{0}", JsonConvert.SerializeObject(userByEmail, Formatting.Indented));
         }
     }

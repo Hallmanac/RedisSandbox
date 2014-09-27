@@ -44,7 +44,7 @@ namespace RedisSandbox.Console.Identity.Cache
         public void PutUserInCache(User user)
         {
             // Put the object into the cache
-            _appCache.Put(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey());
+            _appCache.AddOrUpdate(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey());
 
             // Set the index for Emails
             user.Emails.ForEach(eml => _appCache.SetCustomIndex(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username))));
@@ -56,7 +56,7 @@ namespace RedisSandbox.Console.Identity.Cache
         public async Task PutUserInCacheAsync(User user)
         {
             // Put the object into the cache
-            await _appCache.PutAsync(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey()).ConfigureAwait(false);
+            await _appCache.AddOrUpdateAsync(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey()).ConfigureAwait(false);
 
             // Set the index for Emails
             user.Emails.ForEach(

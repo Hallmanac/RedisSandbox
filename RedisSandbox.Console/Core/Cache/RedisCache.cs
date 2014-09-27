@@ -133,7 +133,7 @@ namespace RedisSandbox.Console.Core.Cache
             await _redisCache.SetRemoveAsync(ComposeTrackingIndexKey(trackingIndexName), key).ConfigureAwait(false);
         }
 
-        public void Put(string key, object value, TimeSpan? timeout, string trackingIndexName = "")
+        public void AddOrUpdate(string key, object value, TimeSpan? timeout, string trackingIndexName = "")
         {
             if(string.IsNullOrEmpty(key) || value == null)
                 return;
@@ -147,7 +147,7 @@ namespace RedisSandbox.Console.Core.Cache
             _redisCache.SetAdd(ComposeTrackingIndexKey(trackingIndexName), key);
         }
 
-        public async Task PutAsync(string key, object value, TimeSpan? timeout, string trackingIndexName = "")
+        public async Task AddOrUpdateAsync(string key, object value, TimeSpan? timeout, string trackingIndexName = "")
         {
             if(string.IsNullOrEmpty(key) || value == null)
                 return;

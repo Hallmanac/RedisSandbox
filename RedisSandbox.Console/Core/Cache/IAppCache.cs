@@ -18,8 +18,8 @@ namespace RedisSandbox.Console.Core.Cache
         void Remove(string key, string trackingIndexName = "");
         Task RemoveAsync(string key, string trackingIndexName = "");
 
-        void Put(string key, object value, TimeSpan? timeout, string trackingIndexName = "");
-        Task PutAsync(string key, object value, TimeSpan? timeout, string trackingIndexName = "");
+        void AddOrUpdate(string key, object value, TimeSpan? timeout, string trackingIndexName = "");
+        Task AddOrUpdateAsync(string key, object value, TimeSpan? timeout, string trackingIndexName = "");
 
         TValue GetItemViaIndex<TValue>(string indexName, string hashKey) where TValue : class;
         Task<TValue> GetItemViaIndexAsync<TValue>(string indexName, string hashKey) where TValue : class;

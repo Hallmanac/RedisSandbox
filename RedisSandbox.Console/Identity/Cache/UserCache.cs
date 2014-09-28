@@ -17,7 +17,7 @@ namespace RedisSandbox.Console.Identity.Cache
         {
             // The ID index is stored as a hash set or Concurrent Dictionary so we call into that index in cache
             // and it will give the proper cache key that will allow us to retrieve the full user from cache.
-            var theUser = _appCache.GetItemViaIndex<User>(ComposeUserIdIndexKey(), id.ToString());
+            var theUser = _appCache.GetItemFromIndex<User>(ComposeUserIdIndexKey(), id.ToString());
             return theUser;
         }
 
@@ -25,7 +25,7 @@ namespace RedisSandbox.Console.Identity.Cache
         {
             // The ID index is stored as a hash set or Concurrent Dictionary so we call into that index in cache
             // and it will give the proper cache key that will allow us to retrieve the full user from cache.
-            var theUser = await _appCache.GetItemViaIndexAsync<User>(ComposeUserIdIndexKey(), id.ToString()).ConfigureAwait(false);
+            var theUser = await _appCache.GetItemFromIndexAsync<User>(ComposeUserIdIndexKey(), id.ToString()).ConfigureAwait(false);
             return theUser;
         }
 
@@ -47,10 +47,10 @@ namespace RedisSandbox.Console.Identity.Cache
             _appCache.AddOrUpdate(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey());
 
             // Set the index for Emails
-            user.Emails.ForEach(eml => _appCache.SetCustomIndex(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username))));
+            user.Emails.ForEach(eml => _appCache.SetItemForCustomIndex(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username))));
 
             // Set the index for user id
-            _appCache.SetCustomIndex(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)));
+            _appCache.SetItemForCustomIndex(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)));
         }
 
         public async Task PutUserInCacheAsync(User user)
@@ -62,12 +62,12 @@ namespace RedisSandbox.Console.Identity.Cache
             user.Emails.ForEach(
                 async eml =>
                     await
-                        _appCache.SetCustomIndexAsync(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username)))
+                        _appCache.SetItemForCustomIndexAsync(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username)))
                                  .ConfigureAwait(false));
 
             // Set the index for user id
             await
-                _appCache.SetCustomIndexAsync(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)))
+                _appCache.SetItemForCustomIndexAsync(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)))
                          .ConfigureAwait(false);
         }
 
@@ -90,15 +90,20 @@ namespace RedisSandbox.Console.Identity.Cache
             return _appCache.GetAllTrackedItemsInCache<User>(ComposeIndexKey());
         }
 
+        public async Task<List<User>> GetAllUsersInCacheAsync()
+        {
+            return await _appCache.GetAllTrackedItemsInCacheAsync<User>(ComposeIndexKey()).ConfigureAwait(false);
+        }  
+
         public User GetByEmail(string emailAddress)
         {
-            var theUser = _appCache.GetItemViaIndex<User>(ComposeEmailIndexKey(), emailAddress);
+            var theUser = _appCache.GetItemFromIndex<User>(ComposeEmailIndexKey(), emailAddress);
             return theUser;
         }
 
         public async Task<User> GetByEmailAsync(string emailAddress)
         {
-            var theUser = await _appCache.GetItemViaIndexAsync<User>(ComposeEmailIndexKey(), emailAddress).ConfigureAwait(false);
+            var theUser = await _appCache.GetItemFromIndexAsync<User>(ComposeEmailIndexKey(), emailAddress).ConfigureAwait(false);
             return theUser;
         }
 

@@ -21,16 +21,20 @@ namespace RedisSandbox.Console.Core.Cache
         void AddOrUpdate(string key, object value, TimeSpan? timeout, string trackingIndexName = "");
         Task AddOrUpdateAsync(string key, object value, TimeSpan? timeout, string trackingIndexName = "");
 
-        TValue GetItemViaIndex<TValue>(string indexName, string hashKey) where TValue : class;
-        Task<TValue> GetItemViaIndexAsync<TValue>(string indexName, string hashKey) where TValue : class;
+        TValue GetItemFromIndex<TValue>(string indexName, string hashKey) where TValue : class;
+        Task<TValue> GetItemFromIndexAsync<TValue>(string indexName, string hashKey) where TValue : class;
 
-        void SetCustomIndex(string indexName, KeyValuePair<string, string> hashSet);
-        Task SetCustomIndexAsync(string indexName, KeyValuePair<string, string> hashSet);
+        List<TValue> GetAllItemsFromIndex<TValue>(string indexName) where TValue : class;
+        Task<List<TValue>> GetAllItemsFromIndexAsync<TValue>(string indexName) where TValue : class; 
+
+        void SetItemForCustomIndex(string indexName, KeyValuePair<string, string> hashSet);
+        Task SetItemForCustomIndexAsync(string indexName, KeyValuePair<string, string> hashSet);
 
         void RemoveFromCustomIndex(string indexName, string hashKey);
         Task RemoveFromCustomIndexAsync(string indexName, string hashKey);
 
-        IEnumerable<TValue> GetAllTrackedItemsInCache<TValue>(string trackingIndexName) where TValue : class;
+        List<TValue> GetAllTrackedItemsInCache<TValue>(string trackingIndexName) where TValue : class;
+        Task<List<TValue>> GetAllTrackedItemsInCacheAsync<TValue>(string trackingIndexName) where TValue : class; 
 
         void ClearCache();
         Task ClearCacheAsync();

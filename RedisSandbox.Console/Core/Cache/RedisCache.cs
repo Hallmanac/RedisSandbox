@@ -161,31 +161,35 @@ namespace RedisSandbox.Console.Core.Cache
             await _redisCache.SetAddAsync(ComposeTrackingIndexKey(trackingIndexName), key).ConfigureAwait(false);
         }
 
-        public IEnumerable<TValue> GetAllTrackedItemsInCache<TValue>(string trackingIndexName) where TValue : class
+        public List<TValue> GetAllTrackedItemsInCache<TValue>(string trackingIndexName) where TValue : class
         {
-            if(string.IsNullOrEmpty(trackingIndexName))
-                yield break;
-            var previouslyScannedMembers = new List<string>();
-            if(!_redisCache.KeyExists(ComposeTrackingIndexKey(trackingIndexName)))
-                yield break;
-            foreach(
-                var redisValue in
-                    _redisCache.SetScan(ComposeTrackingIndexKey(trackingIndexName))
-                               .Where(redisValue => !previouslyScannedMembers.Contains(redisValue.ToString())))
-            {
-                previouslyScannedMembers.Add(redisValue);
-                var cachedValue = _redisCache.StringGet(redisValue.ToString());
-                if(string.IsNullOrEmpty(cachedValue))
-                    _redisCache.SetRemove(ComposeTrackingIndexKey(trackingIndexName), redisValue);
-                else // We simply add the cacheItem to the list of indexedValues that we will eventually return.
-                {
-                    var cachedItem = JsonConvert.DeserializeObject<TValue>(cachedValue);
-                    yield return cachedItem;
-                }
-            }
+            return GetAllTrackedItemsInCacheAsync<TValue>(trackingIndexName).Result;
         }
 
-        public TValue GetItemViaIndex<TValue>(string indexName, string hashKey) where TValue : class
+        public async Task<List<TValue>> GetAllTrackedItemsInCacheAsync<TValue>(string trackingIndexName) where TValue : class
+        {
+            if(string.IsNullOrEmpty(trackingIndexName))
+                return new List<TValue>();
+            if(!_redisCache.KeyExists(ComposeTrackingIndexKey(trackingIndexName)))
+                return new List<TValue>();
+            var setMembers = await _redisCache.SetMembersAsync(ComposeTrackingIndexKey(trackingIndexName)).ConfigureAwait(false);
+            if(setMembers.Length < 1)
+                return new List<TValue>();
+            var resultList = new List<TValue>();
+            foreach(var member in setMembers)
+            {
+                var cachedItem = await GetValueAsync<TValue>(member.ToString()).ConfigureAwait(false);
+                if(cachedItem == default(TValue))
+                {
+                    await _redisCache.SetRemoveAsync(ComposeTrackingIndexKey(trackingIndexName), member).ConfigureAwait(false);
+                    continue;
+                }
+                resultList.Add(cachedItem);
+            }
+            return resultList;
+        }
+
+        public TValue GetItemFromIndex<TValue>(string indexName, string hashKey) where TValue : class
         {
             var cacheKey = _redisCache.HashGet(ComposeCustomIndexKey(indexName), hashKey);
             if(cacheKey.IsNullOrEmpty)
@@ -200,7 +204,7 @@ namespace RedisSandbox.Console.Core.Cache
             return cacheValue;
         }
 
-        public async Task<TValue> GetItemViaIndexAsync<TValue>(string indexName, string hashKey) where TValue : class
+        public async Task<TValue> GetItemFromIndexAsync<TValue>(string indexName, string hashKey) where TValue : class
         {
             var cacheKey = await _redisCache.HashGetAsync(ComposeCustomIndexKey(indexName), hashKey).ConfigureAwait(false);
             if(cacheKey.IsNullOrEmpty)
@@ -215,6 +219,44 @@ namespace RedisSandbox.Console.Core.Cache
             return cacheValue;
         }
 
+        public List<TValue> GetAllItemsFromIndex<TValue>(string indexName) where TValue : class
+        {
+            return GetAllItemsFromIndexAsync<TValue>(indexName).Result;
+        }
+
+        public async Task<List<TValue>> GetAllItemsFromIndexAsync<TValue>(string indexName) where TValue : class
+        {
+            if(string.IsNullOrEmpty(indexName))
+                return new List<TValue>();
+            if(!_redisCache.KeyExists(ComposeCustomIndexKey(indexName)))
+                return new List<TValue>();
+            // Get all the hash entries at the specified cache key
+            var hashSetAtIndex = await _redisCache.HashGetAllAsync(ComposeCustomIndexKey(indexName)).ConfigureAwait(false);
+            if(hashSetAtIndex.Length < 1)
+                return new List<TValue>();
+            
+            var resultList = new List<TValue>();
+
+            foreach(var hashEntry in hashSetAtIndex)
+            {
+                var hashKey = hashEntry.Name.ToString();
+                var hashVal = hashEntry.Value.ToString();
+
+                // Get the cached item value
+                var cachedItem = await GetValueAsync<TValue>(hashVal).ConfigureAwait(false);
+
+                // If we have a null then we remove it from the custom index and continue the iteration
+                if(cachedItem == default(TValue))
+                {
+                    await RemoveFromCustomIndexAsync(indexName, hashKey).ConfigureAwait(false);
+                    continue;
+                }
+                // Else we add it to the result list
+                resultList.Add(cachedItem);
+            }
+            return resultList;
+        }
+
         public void RemoveFromCustomIndex(string indexName, string hashKey) { _redisCache.HashDelete(ComposeCustomIndexKey(indexName), hashKey); }
 
         public async Task RemoveFromCustomIndexAsync(string indexName, string hashKey)
@@ -222,12 +264,12 @@ namespace RedisSandbox.Console.Core.Cache
             await _redisCache.HashDeleteAsync(ComposeCustomIndexKey(indexName), hashKey).ConfigureAwait(false);
         }
 
-        public void SetCustomIndex(string indexName, KeyValuePair<string, string> hashSet)
+        public void SetItemForCustomIndex(string indexName, KeyValuePair<string, string> hashSet)
         {
             _redisCache.HashSet(ComposeCustomIndexKey(indexName), hashSet.Key, hashSet.Value);
         }
 
-        public async Task SetCustomIndexAsync(string indexName, KeyValuePair<string, string> hashSet)
+        public async Task SetItemForCustomIndexAsync(string indexName, KeyValuePair<string, string> hashSet)
         {
             await _redisCache.HashSetAsync(ComposeCustomIndexKey(indexName), hashSet.Key, hashSet.Value).ConfigureAwait(false);
         }

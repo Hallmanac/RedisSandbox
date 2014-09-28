@@ -15,11 +15,26 @@ namespace RedisSandbox.Console
         public async Task InitializeUsersAsync(int numberOfUsers = 20, int numberOfPhoneNumbers = 20, int iteration = 0)
         {
             var userCache = AppConst.AppContainer.Resolve<UserCache>();
+            var sw = new Stopwatch();
+            
+            sw.Restart();
             await userCache.ClearCacheAsync();
+            sw.Stop();
+            System.Console.WriteLine("Cleared Cache in {0} milliseconds", sw.ElapsedMilliseconds);
+
             // --- First delete existing users --- //
-            var existingUsers = userCache.GetAllUsersInCache().ToList();
+            sw.Restart();
+            var existingUsers = await userCache.GetAllUsersInCacheAsync();
+            //var existingUsers = userCache.GetAllUsersInCache().ToList();
+            sw.Stop();
+            System.Console.WriteLine("\nGot all existing users in {0} milliseconds.", sw.ElapsedMilliseconds);
             if(existingUsers.Count > 0)
+            {
+                sw.Restart();
                 existingUsers.ForEach(async usr =>  await userCache.RemoveUserFromCacheAsync(usr));
+                sw.Stop();
+                System.Console.WriteLine("\nRemoved all existing users in {0} milliseconds", sw.ElapsedMilliseconds);
+            }
 
             // Create all the phone numbers
             var phoneNumbers = new List<PhoneNumber>();
@@ -65,9 +80,10 @@ namespace RedisSandbox.Console
                 return await userCache.GetByEmailAsync(emailAddress);
             var sw = new Stopwatch();
             sw.Start();
-            var count = userCache.GetAllUsersInCache().Count();
+            var allUserList = await userCache.GetAllUsersInCacheAsync();
+            var count = allUserList.Count;
             sw.Stop();
-            System.Console.WriteLine("\nGot count of all users in {0}. --> Iteration {1}", sw.ElapsedMilliseconds, iteration);
+            System.Console.WriteLine("\nGot count of all users in {0} milliseconds. --> Iteration {1}", sw.ElapsedMilliseconds, iteration);
             sw.Reset();
             var random = new Random();
             var emailNumber = random.Next(count);
@@ -75,7 +91,7 @@ namespace RedisSandbox.Console
             sw.Start();
             var returnUser = await userCache.GetByEmailAsync(emailAddress);
             sw.Stop();
-            System.Console.WriteLine("\nGot random user in {0}. --> Iteration {1}", sw.ElapsedMilliseconds, iteration);
+            System.Console.WriteLine("\nGot random user in {0} milliseconds. --> Iteration {1}", sw.ElapsedMilliseconds, iteration);
             return returnUser;
         }
     }

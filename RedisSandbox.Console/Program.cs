@@ -40,6 +40,11 @@ namespace RedisSandbox.Console
 
             var userByEmail = await rt.ShowUserByEmailAsync(null, iteration);
             System.Console.WriteLine("\nThe random user is...\n{0}", JsonConvert.SerializeObject(userByEmail, Formatting.Indented));
+
+            await rt.ShowAllUserGroupNamesAsync();
+            System.Console.WriteLine("\nEnter a group name to view the count of users...");
+            var groupName = System.Console.ReadLine();
+            await rt.ShowCountOfUsersInGroup(groupName);
         }
     }
 }

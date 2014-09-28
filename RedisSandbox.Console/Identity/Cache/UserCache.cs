@@ -47,10 +47,14 @@ namespace RedisSandbox.Console.Identity.Cache
             _appCache.AddOrUpdate(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey());
 
             // Set the index for Emails
-            user.Emails.ForEach(eml => _appCache.SetItemForCustomIndex(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username))));
+            user.Emails.ForEach(
+                eml => _appCache.SetItemForCustomIndex(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username))));
 
             // Set the index for user id
             _appCache.SetItemForCustomIndex(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)));
+
+            // Set index for user group
+            _appCache.SetItemForCustomIndex(ComposeUserGroupIndexKey(user.UserGroup), new KeyValuePair<string, string>(user.Username, user.Username));
         }
 
         public async Task PutUserInCacheAsync(User user)
@@ -62,13 +66,21 @@ namespace RedisSandbox.Console.Identity.Cache
             user.Emails.ForEach(
                 async eml =>
                     await
-                        _appCache.SetItemForCustomIndexAsync(ComposeEmailIndexKey(), new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username)))
+                        _appCache.SetItemForCustomIndexAsync(ComposeEmailIndexKey(),
+                            new KeyValuePair<string, string>(eml.EmailAddress, ComposeKey(user.Username)))
                                  .ConfigureAwait(false));
 
             // Set the index for user id
             await
                 _appCache.SetItemForCustomIndexAsync(ComposeUserIdIndexKey(), new KeyValuePair<string, string>(user.Id.ToString(), ComposeKey(user.Username)))
                          .ConfigureAwait(false);
+
+            // Put the user in the user group index based on their user group
+            await
+                _appCache.SetItemForCustomIndexAsync(ComposeUserGroupIndexKey(user.UserGroup),
+                    new KeyValuePair<string, string>(user.Username, ComposeKey(user.Username)))
+                         .ConfigureAwait(false);
+            await _appCache.AddOrUpdateAsync(ComposeUserGroupKey(user.UserGroup), user.UserGroup, null, ListOfUserGroupsKey).ConfigureAwait(false);
         }
 
         public void RemoveUserFromCache(User user)
@@ -85,15 +97,12 @@ namespace RedisSandbox.Console.Identity.Cache
             await _appCache.RemoveFromCustomIndexAsync(ComposeUserIdIndexKey(), user.Id.ToString()).ConfigureAwait(false);
         }
 
-        public IEnumerable<User> GetAllUsersInCache()
-        {
-            return _appCache.GetAllTrackedItemsInCache<User>(ComposeIndexKey());
-        }
+        public IEnumerable<User> GetAllUsersInCache() { return _appCache.GetAllTrackedItemsInCache<User>(ComposeIndexKey()); }
 
         public async Task<List<User>> GetAllUsersInCacheAsync()
         {
             return await _appCache.GetAllTrackedItemsInCacheAsync<User>(ComposeIndexKey()).ConfigureAwait(false);
-        }  
+        }
 
         public User GetByEmail(string emailAddress)
         {
@@ -107,10 +116,22 @@ namespace RedisSandbox.Console.Identity.Cache
             return theUser;
         }
 
+        public async Task<List<User>> GetAllUsersInGroupAsync(string groupName)
+        {
+            return await _appCache.GetAllItemsFromIndexAsync<User>(ComposeUserGroupIndexKey(groupName)).ConfigureAwait(false);
+        }
+
+        public async Task<List<string>> GetAllUserGroupNamesAsync()
+        {
+            return await _appCache.GetAllTrackedItemsInCacheAsync<string>(ListOfUserGroupsKey).ConfigureAwait(false);
+        }
+
         public void ClearCache() { _appCache.ClearCache(); }
 
-        #region Key Composers
+        public async Task ClearCacheAsync() { await _appCache.ClearCacheAsync(); }
 
+        #region Key Composers
+        private const string ListOfUserGroupsKey = "ListOfUserGroupsKey";
         private static string ComposeKey(string keyItem) { return string.Format("{0}_{1}", "UserEntity", keyItem); }
 
         private static string ComposeIndexKey() { return string.Format("{0}", "UsersIndexList"); }
@@ -119,8 +140,9 @@ namespace RedisSandbox.Console.Identity.Cache
 
         private static string ComposeUserIdIndexKey() { return string.Format("{0}:{1}", "User", "Ids"); }
 
-        #endregion
+        private static string ComposeUserGroupIndexKey(string groupName) { return string.Format("UserGroup:{0}", groupName); }
 
-        public async Task ClearCacheAsync() { await _appCache.ClearCacheAsync(); }
+        private static string ComposeUserGroupKey(string userGroup) { return string.Format("UserGroup_{0}", userGroup); }
+        #endregion
     }
 }

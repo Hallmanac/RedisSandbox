@@ -16,7 +16,6 @@ namespace RedisSandbox.Console
         {
             var userCache = AppConst.AppContainer.Resolve<UserCache>();
             var sw = new Stopwatch();
-            
             sw.Restart();
             await userCache.ClearCacheAsync();
             sw.Stop();
@@ -31,7 +30,7 @@ namespace RedisSandbox.Console
             if(existingUsers.Count > 0)
             {
                 sw.Restart();
-                existingUsers.ForEach(async usr =>  await userCache.RemoveUserFromCacheAsync(usr));
+                existingUsers.ForEach(async usr => await userCache.RemoveUserFromCacheAsync(usr));
                 sw.Stop();
                 System.Console.WriteLine("\nRemoved all existing users in {0} milliseconds", sw.ElapsedMilliseconds);
             }
@@ -47,8 +46,18 @@ namespace RedisSandbox.Console
                     LineNumber = 9600 + (20 - i)
                 });
             }
-            
+            var userGroupNames = new List<string>
+            {
+                "Group 1",
+                "Group 2",
+                "Group 3",
+                "Group 4",
+                "Group 5",
+                "Group 6",
+                "Gorup 7"
+            };
             var phoneCount = 2;
+            var userGroupNameCount = 0;
             for(var i = 0; i < numberOfUsers; i++)
             {
                 var user = new User
@@ -68,6 +77,11 @@ namespace RedisSandbox.Console
                 phoneCount += 2;
                 if(phoneCount % numberOfPhoneNumbers == 0)
                     phoneCount = 2;
+                user.UserGroup = userGroupNames[userGroupNameCount];
+                if(userGroupNameCount < userGroupNames.Count - 1)
+                    userGroupNameCount++;
+                else
+                    userGroupNameCount = 0;
                 await userCache.PutUserInCacheAsync(user);
             }
             System.Console.WriteLine("\nUsers initialized in iteration {0}.", iteration);
@@ -93,6 +107,47 @@ namespace RedisSandbox.Console
             sw.Stop();
             System.Console.WriteLine("\nGot random user in {0} milliseconds. --> Iteration {1}", sw.ElapsedMilliseconds, iteration);
             return returnUser;
+        }
+
+        public async Task ShowAllUserGroupNamesAsync()
+        {
+            var userCache = AppConst.AppContainer.Resolve<UserCache>();
+            var sw = new Stopwatch();
+            sw.Restart();
+            var groups = await userCache.GetAllUserGroupNamesAsync();
+            sw.Stop();
+            if(groups.Count < 1)
+            {
+                System.Console.WriteLine("\nThere are no groups to list.");
+                return;
+            }
+            System.Console.WriteLine("\nThe list of all group names are...");
+            groups.ForEach(gn => System.Console.WriteLine("\n{0}", gn));
+        }
+
+        public async Task ShowCountOfUsersInGroup(string groupName)
+        {
+            if(string.IsNullOrEmpty(groupName))
+            {
+                System.Console.WriteLine("\nNo group name was given");
+                return;
+            }
+            var userCache = AppConst.AppContainer.Resolve<UserCache>();
+            var sw = new Stopwatch();
+            sw.Restart();
+            var usersInGroup = await userCache.GetAllUsersInGroupAsync(groupName).ConfigureAwait(false);
+            sw.Stop();
+            if(usersInGroup.Count < 1)
+            {
+                System.Console.WriteLine("\nThere were no users returned in that group name.");
+                return;
+            }
+            System.Console.WriteLine("\nUsers in group {0} were retrieved in {1} milliseconds", groupName, sw.ElapsedMilliseconds);
+            System.Console.WriteLine("\nThere were {0} users in that group.", usersInGroup.Count);
+            System.Console.WriteLine("\nWould you like to see the users? Y/N");
+            var answer = System.Console.ReadLine();
+            if(answer != null && answer.ToLower().Contains('y'))
+                usersInGroup.ForEach(usr => System.Console.WriteLine("\n{0}", usr.Username));
         }
     }
 }

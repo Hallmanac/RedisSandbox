@@ -18,6 +18,8 @@ namespace RedisSandbox.Console.Identity
 
         public string Username { get; set; }
 
+        public string UserGroup { get; set; }
+
         public List<Email> Emails { get; set; }
 
         public List<PhoneNumber> PhoneNumbers { get; set; }

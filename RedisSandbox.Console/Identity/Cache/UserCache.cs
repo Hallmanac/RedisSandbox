@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using RedisSandbox.Console.Core.Cache;
 
@@ -41,7 +42,7 @@ namespace RedisSandbox.Console.Identity.Cache
             return await _appCache.GetValueAsync<User>(ComposeKey(userName), ComposeIndexKey()).ConfigureAwait(false);
         }
 
-        public void PutUserInCache(User user)
+        public void AddOrUpdateUser(User user)
         {
             // Put the object into the cache
             _appCache.AddOrUpdate(ComposeKey(user.Username), user, TimeSpan.FromDays(30), ComposeIndexKey());
@@ -123,7 +124,8 @@ namespace RedisSandbox.Console.Identity.Cache
 
         public async Task<List<string>> GetAllUserGroupNamesAsync()
         {
-            return await _appCache.GetAllTrackedItemsInCacheAsync<string>(ListOfUserGroupsKey).ConfigureAwait(false);
+            var resultList = await _appCache.GetAllTrackedItemsInCacheAsync<string>(ListOfUserGroupsKey).ConfigureAwait(false);
+            return resultList.OrderBy(name => name).ToList();
         }
 
         public void ClearCache() { _appCache.ClearCache(); }

@@ -11,7 +11,12 @@ namespace RedisSandbox.Console.Core.Cache
     {
         private readonly IDatabase _redisCache;
 
-        public RedisCache() { _redisCache = ConnectionMultiplexer.Connect(AppConst.RedisConnectionString).GetDatabase(); }
+        public RedisCache()
+        {
+            // We call a static singleton property to ensure that we don't create multiple connections to the multiplexer.
+            // The multiplexer handles the balancing of connection pools.
+            _redisCache = AppConst.RedisMultiplexer.GetDatabase();
+        }
 
         public bool Contains(string key) { return _redisCache.KeyExists(key); }
 

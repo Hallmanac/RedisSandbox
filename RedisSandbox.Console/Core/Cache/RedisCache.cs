@@ -15,6 +15,8 @@ namespace RedisSandbox.Console.Core.Cache
         {
             // We call a static singleton property to ensure that we don't create multiple connections to the multiplexer.
             // The multiplexer handles the balancing of connection pools.
+            // This is particularly valueable in ASP.NET applications where you might new up several instances of this cache provider for a given request. And
+            // since we're not destroying those connections we end up maintaining hundreds upon thousands of connections which starves memory and resources.
             _redisCache = AppConst.RedisMultiplexer.GetDatabase();
         }
 
